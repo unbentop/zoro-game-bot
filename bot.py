@@ -1,15 +1,16 @@
 import requests
 import random
 import os
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from telegram.constants import ParseMode
 
-# Токен из переменной окружения Render
 TOKEN = os.environ.get("BOT_TOKEN")
 JSON_URL = "https://zoro-game.store/data/ZObase.json"
+PORT = int(os.environ.get("PORT", 10000))
 
-# Кеш
 games_cache = None
 
 def load_games():
@@ -367,7 +368,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ============ ЗАПУСК ============
 
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+def run_health_server():
+    server = HTTPServer(("0.0.0.0", PORT), HealthHandler)
+    server.serve_forever()
+
 def main():
+    threading.Thread(target=run_health_server, daemon=True).start()
+    
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("zgsgameid", game_info))
